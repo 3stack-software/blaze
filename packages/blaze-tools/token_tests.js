@@ -1,5 +1,5 @@
-import { BlazeTools } from 'meteor/blaze-tools';
-import { HTMLTools } from 'meteor/html-tools';
+import { BlazeTools } from '../blaze-tools';
+import { HTMLTools } from '../html-tools';
 
 Tinytest.add("blaze-tools - token parsers", function (test) {
 

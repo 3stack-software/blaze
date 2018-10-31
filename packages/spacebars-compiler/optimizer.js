@@ -1,6 +1,6 @@
-import { HTMLTools } from 'meteor/html-tools';
-import { HTML } from 'meteor/htmljs';
-import { BlazeTools } from 'meteor/blaze-tools';
+import { HTMLTools } from '../html-tools';
+import { HTML } from '../htmljs';
+import { BlazeTools } from '../blaze-tools';
 
 // Optimize parts of an HTMLjs tree into raw HTML strings when they don't
 // contain template tags.

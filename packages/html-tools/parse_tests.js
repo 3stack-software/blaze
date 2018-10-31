@@ -1,5 +1,5 @@
-import { HTML } from 'meteor/htmljs';
-import { HTMLTools} from 'meteor/html-tools';
+import { HTML } from '../htmljs';
+import { HTMLTools} from '../html-tools';
 
 var Scanner = HTMLTools.Scanner;
 var getContent = HTMLTools.Parse.getContent;
