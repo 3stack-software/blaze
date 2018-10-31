@@ -148,7 +148,6 @@ TransformingVisitor.def({
 
     const children = tag.children
     .map(child => this.visit(child))
-    .filter(child => !t.isJSXText(child) || !child.value.includes('\n') || child.value.trim() !== '')
     .map(child => {
       if (t.isJSXElement(child) || t.isJSXText(child)) {
         return child;
@@ -193,11 +192,13 @@ function toJSX(node) {
     console.dir({
       transformed,
     }, { depth: null });
-    if (transformed.children.length === 0) {
+    // instead of wrapping [ <space>, <elem>, <space> ] with a fragment, just return <elem>
+    const filtered = transformed.children.filter(child => !t.isJSXText(child) || child.value.trim() !== '');
+    if (filtered.length === 0) {
       return t.nullLiteral();
     }
-    if (transformed.children.length === 1 && t.isJSXElement(transformed.children[0])) {
-      return transformed.children[0];
+    if (filtered.length === 1 && t.isJSXElement(filtered[0])) {
+      return filtered[0];
     }
     return t.jsxFragment(
       t.jsxOpeningFragment(),
@@ -211,6 +212,7 @@ function toJSX(node) {
 
 const template = `
     <div class="panel-heading">
+    <!-- test -->
       <div class="pull-right">
         <div class="dropdown">
           <a class="dropdown-toggle btn btn-link" data-toggle="dropdown" href="#">
