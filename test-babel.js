@@ -1,7 +1,7 @@
 const Parser = require('@babel/parser');
 const generate = require('@babel/generator');
 
-const code = '<>What</>';
+const code = '`a${arg1}b${arg2}c`';
 console.dir(Parser.parse(code, {
   sourceType: 'module',
   plugins: [
