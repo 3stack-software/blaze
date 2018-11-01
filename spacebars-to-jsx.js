@@ -201,15 +201,15 @@ TransformingVisitor.def({
       if (path[0] === "if") {
         return t.conditionalExpression(
           generateArg(args[0]),
-          toJSX(content),
-          toJSX(elseContent)
+          toJSX(content, this),
+          toJSX(elseContent, this)
         );
       }
       if (path[0] === "unless") {
         return t.conditionalExpression(
           t.unaryExpression("!", generateArg(args[0])),
-          toJSX(content),
-          toJSX(elseContent)
+          toJSX(content, this),
+          toJSX(elseContent, this)
         );
       }
 
@@ -238,9 +238,23 @@ TransformingVisitor.def({
         args = args.slice(2);
       }
 
-      const attrs = [generateJSXAttr(attrName, generateInclusionArg(args))];
+      const inclusionArg = generateInclusionArg(args);
+      const attrs = [generateJSXAttr(attrName, inclusionArg)];
       const id = generatePathJSXIdentifier(path, true);
 
+      if (path[0] === 'let' && t.isObjectExpression(inclusionArg)) {
+        arrowArgs = [
+          t.objectPattern(
+            inclusionArg.properties.map( p => t.objectProperty(
+              /* these should all be string literals, but totally safe */
+              t.identifier(p.key.value),
+              t.identifier(p.key.value),
+              false,
+              true
+            ))
+          )
+        ]
+      }
       if (elseContent == null) {
         // TODO compile 'each' to (helper).map(...)
         // these helpers change the data context, so they must be functional
@@ -250,7 +264,7 @@ TransformingVisitor.def({
             t.jsxClosingElement(id),
             [
               t.jsxExpressionContainer(
-                t.arrowFunctionExpression(arrowArgs, toJSX(content))
+                t.arrowFunctionExpression(arrowArgs, toJSX(content, this))
               )
             ],
             false
@@ -260,7 +274,7 @@ TransformingVisitor.def({
         return t.jsxElement(
           t.jsxOpeningElement(id, attrs, false),
           t.jsxClosingElement(id),
-          toJSXArray(tag.content),
+          toJSXArray(tag.content, this),
           false
         );
       }
@@ -272,13 +286,13 @@ TransformingVisitor.def({
             t.jsxAttribute(
               t.jsxIdentifier("content"),
               t.jsxExpressionContainer(
-                t.arrowFunctionExpression(arrowArgs, toJSX(content))
+                t.arrowFunctionExpression(arrowArgs, toJSX(content, this))
               )
             ),
             t.jsxAttribute(
               t.jsxIdentifier("elseContent"),
               t.jsxExpressionContainer(
-                t.arrowFunctionExpression([], toJSX(elseContent))
+                t.arrowFunctionExpression([], toJSX(elseContent, this))
               )
             )
           ]),
@@ -375,7 +389,7 @@ TransformingVisitor.def({
   }
 });
 
-function toJSX(node) {
+function toJSX(node, visitor = null) {
   // TODO reuse visitor
 
   // node can be null, an array, spacebars, tag, string, charref
@@ -392,7 +406,7 @@ function toJSX(node) {
       node = new HTML.DIV(node);
     }
   }
-  const transformed = new TransformingVisitor().visitTag(node);
+  const transformed = (visitor || new TransformingVisitor()).visitTag(node);
 
   if (wrapped && t.isJSXElement(transformed)) {
     // instead of wrapping [ <space>, <elem>, <space> ] with a fragment, just return <elem>
@@ -414,7 +428,7 @@ function toJSX(node) {
   return transformed;
 }
 
-function toJSXArray(node) {
+function toJSXArray(node, visitor) {
   // TODO reuse visitor
   // node can be null, an array, spacebars, tag, string, charref
   if (node == null) {
@@ -430,7 +444,7 @@ function toJSXArray(node) {
       node = new HTML.DIV(node);
     }
   }
-  const transformed = new TransformingVisitor().visitTag(node);
+  const transformed = (visitor || new TransformingVisitor()).visitTag(node);
 
   if (wrapped && t.isJSXElement(transformed)) {
     // instead of wrapping [ <space>, <elem>, <space> ] with a fragment, just return <elem>
@@ -463,20 +477,20 @@ const template = `
               <a href="#">Display Options</a>
             </li>
             <li class="divider"></li>
-            {{#each periods}}
+            {{#each period in periods}}
               <li>
-                <a href="#" data-action="setPeriodFilter" data-period="{{p}}">
-                  <i class="{{iconChecked}}"></i> {{p}} days
+                <a href="#" data-action="setPeriodFilter" data-period="{{period.p}}">
+                  <i class="{{iconChecked period.p}}"></i> {{period.p}} days
                 </a>
               </li>
             {{/each}}
-            {{#with p=-1}}
+            {{#let p=-1}}
               <li>
                 <a href="#" data-action="setPeriodFilter" data-period="{{p}}">
-                  <i class="{{iconChecked}}"></i> Any Time
+                  <i class="{{iconChecked p}}"></i> Any Time
                 </a>
               </li>
-            {{/with}}
+            {{/let}}
           </ul>
         </div>
       </div>
