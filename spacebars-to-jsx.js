@@ -112,19 +112,28 @@ function generateJSXAttr(name, expr) {
   return t.jsxAttribute(id, t.jsxExpressionContainer(expr));
 }
 
-function generateJSXAttrs(tagArgs, positionalArgName = "arg") {
-  const { args, kwargs } = generateArgs(tagArgs);
+function generateInclusionArg(args) {
+  // block & inclusion tags, only take one expression as an argument.
+  if (!args.length) {
+    return t.nullLiteral();
+  }
 
-  return args
-    .map((expr, idx) =>
-      generateJSXAttr(
-        idx > 0 ? `${positionalArgName}${idx + 1}` : positionalArgName,
-        expr
-      )
-    )
-    .concat(
-      Object.entries(kwargs).map(([name, expr]) => generateJSXAttr(name, expr))
-    );
+  if (args[0].length === 3) {
+    // convert a=1 b=2 into a literal {a: 1, b: 2}
+    const kwargs = {};
+    args.forEach(function(arg) {
+      kwargs[arg[2]] = generateArg(arg);
+    });
+    return toObject(kwargs);
+  }
+
+  if (args[0][0] !== "PATH") {
+    // literal value
+    return generateArg(args[0]);
+  }
+
+  // convert arg1 arg2 into arg1(arg2)
+  return generateMustache(args[0][1], args.slice(1));
 }
 
 const TransformingVisitor = Visitor.extend();
@@ -178,7 +187,7 @@ TransformingVisitor.def({
       return t.jsxElement(
         t.jsxOpeningElement(
           generatePathJSXIdentifier(tag.path, true),
-          generateJSXAttrs(tag.args, "data"),
+          [generateJSXAttr("data", generateInclusionArg(tag.args))],
           true
         ),
         null,
@@ -229,7 +238,7 @@ TransformingVisitor.def({
         args = args.slice(2);
       }
 
-      const attrs = generateJSXAttrs(args, attrName);
+      const attrs = [generateJSXAttr(attrName, generateInclusionArg(args))];
       const id = generatePathJSXIdentifier(path, true);
 
       if (elseContent == null) {
@@ -291,22 +300,42 @@ TransformingVisitor.def({
     if (tag.attrs != null) {
       (Array.isArray(tag.attrs) ? tag.attrs : [tag.attrs]).forEach(attrs => {
         if (attrs instanceof HTMLTools.TemplateTag) {
+          const attrValue = attrs;
           if (attrs.type !== "DOUBLE") {
-            throw new Error(`Unknown attr template tag: ${attrs.type}`);
+            throw new Error(`Unknown attr template tag: ${attrValue.type}`);
           }
-          const attrTag = attrs;
           attributes.push(
-            t.jsxSpreadAttribute(generateMustache(attrTag.path, attrTag.arg))
+            t.jsxSpreadAttribute(
+              generateMustache(attrValue.path, attrValue.args)
+            )
           );
         } else {
           Object.entries(attrs).forEach(([attrName, attrValue]) => {
             // TODO remap blaze attributes names to JSX format
             // TODO parse style attributes into object literal
-            if (Array.isArray(attrValue) || typeof attrValue !== "string") {
+            if (Array.isArray(attrValue)) {
               // TODO support helpers _within_ attributes
               //throw new Error('Helpers in attributes, not yet implemented');
               attributes.push(
-                t.jsxAttribute(t.jsxIdentifier(attrName), t.stringLiteral(""))
+                t.jsxAttribute(
+                  t.jsxIdentifier(attrName),
+                  t.stringLiteral("mixed attr")
+                )
+              );
+              return;
+            }
+            if (attrValue instanceof HTMLTools.TemplateTag) {
+              // TODO we can have if/unless inside attributes
+              if (attrValue.type !== "DOUBLE") {
+                throw new Error(`Unknown attr template tag: ${attrValue.type}`);
+              }
+              attributes.push(
+                t.jsxAttribute(
+                  t.jsxIdentifier(attrName),
+                  t.jsxExpressionContainer(
+                    generateMustache(attrValue.path, attrValue.args)
+                  )
+                )
               );
               return;
             }
@@ -461,4 +490,4 @@ const ast = {
   body: [toJSX(parsed)]
 };
 const generator = new generate.CodeGenerator(ast);
-console.log(prettier.format(generator.generate().code, {parser: 'babylon'}));
+console.log(prettier.format(generator.generate().code, { parser: "babylon" }));
