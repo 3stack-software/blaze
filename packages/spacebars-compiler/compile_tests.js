@@ -97,8 +97,8 @@ Tinytest.add("spacebars-compiler - compiler errors", function (test) {
   isError("{{#foo 0 x=0}}{{/foo}}",
           "First argument must be a function");
 
-  _.each(['asdf</br>', '{{!foo}}</br>', '{{!foo}} </br>',
-          'asdf</a>', '{{!foo}}</a>', '{{!foo}} </a>'], function (badFrag) {
+  ['asdf</br>', '{{!foo}}</br>', '{{!foo}} </br>',
+          'asdf</a>', '{{!foo}}</a>', '{{!foo}} </a>'].forEach(function (badFrag) {
             isError(badFrag, "Unexpected HTML close tag");
           });
 
